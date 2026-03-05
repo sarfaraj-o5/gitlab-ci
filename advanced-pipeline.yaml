@@ -40,3 +40,131 @@ script:
   - docker build -t $CI_REGISTRY/repo:$DOCKER_IMAGE_TAG --build-agrs GITLAB_USER=$GITLAB_USER  --build-agrs GITLAB_PASSWORD=$GITLAB_PASSWORD -f ./Dockerfile .
   - docker push $CI_REGISTRY/repo:$DOCKER_IMAGE_TAG
   - echo "Run your builds here"
+unit_test:
+stage: test
+image: your-repo:tag
+script:
+  - echo "Run your unit_tests here"
+linting:
+stage: test
+image: your-repo:tag
+script: 
+  - echo "Run your linting tests here"
+sast: 
+stage: test
+image: your-repo:tag
+script: 
+  - echo "Run your Static application security testiing here"
+deploy_dev:
+stage: deploy_dev
+image: your-repo:tag
+before_script:
+  - source file.sh
+  - export VARIABLE="$VALUE"
+  - echo "deploy on dev"
+script:
+  - echo "deploy on dev"
+after_script:
+  # if deployment fails run rollback on dev
+  - echo "Things to do after deployment is run"
+only:
+  - master # Depends on your branching strategy
+integration_test_dev:
+stage: dev_tests
+image: your-repo:tag
+script:
+  - echo "run test on dev"
+only:
+  - master
+allow_failure: true # in case failures are allowed
+deploy_qa:
+stage: deploy_qa
+image: your-repo:tag
+before_script:
+  - source file.sh
+  - export VARIABLE="$VALUE"
+  - echo "deploy on qa"
+script:
+  - echo "deploy on qa"
+after_script:
+  # if deployment fails run rollback on qa
+  - echo "Things to do after deployment script is complete"
+only:
+  - master
+needs: ["integration_test_dev", "deploy_dev"]
+allow_failure: false
+integration_test_qa:
+stage: qa_tests
+image: your-repo:tag
+script: 
+  - echo "deploy on qa"
+only:
+  - master
+allow_failure: true # in case you want to allow failures 
+
+
+rollback_qa:
+stage: rollback_qa
+image: your-repo:tag
+before_script:
+  - echo "Things to rollback after qa integration failures"
+script:
+  - echo "Steps to rollback"
+after_script:
+  - echo "Things to do after rollback"
+only:
+  - master
+needs:
+  [
+    "deploy_qa",
+  ]
+when: on_failure # This will run in case the qa deploy job fails
+allow_failure: false
+
+prod_gate: # this is manual gate for prod approval
+before_script:
+  - echo "your commands here"
+stage: prod_gate
+only:
+  - master
+needs:
+  - deploy_qa
+when: manual
+
+
+deploy_prod: 
+stage: deploy_prod
+image: your-repo:tag
+tags:
+  - some-tags
+before_script:
+  - source file.sh
+  - echo "your commands here"
+script:
+  - echo "your commands here"
+after_script:
+  # if deployment fails
+  - echo "your commands here"
+only: 
+  - master
+needs: ["deploy_qa"]
+allow_failure: false
+rollback_prod: # This stage should be run only when prod deployment fails
+stage: rollback_prod
+image: your-repo:tag
+before_script:
+  - export VARIABLE="$VALUE"
+  - echo "your commands here"
+script:
+  - echo "your commands here"
+only:
+  - master
+needs: ["deploy_prod"]
+allow_failure: false
+when: on_failure
+cleanup:
+stage: cleanup
+script:
+  - echo "run cleanup"
+  - rm -rf .cache/
+when: always
