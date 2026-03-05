@@ -1,0 +1,42 @@
+image: your-repo:tag
+variables:
+DOCKER_DRIVER: overlay2
+DOCKER_TLS_CERTDIR: ""
+DOCKER_HOST: tcp://localhost:2375
+SAST_DISABLE_DIND: "true"
+DS_DISABLE_DIND: "false"
+GOCACHE: "$CI_PROJECT_DIR/.cache"
+cache: # this section is used to cache libraries etc between pipeline runs thus reducing the amount of required for pipeline to run
+key: ${CI_PROJECT_NAME}
+paths:
+  - cache-path/
+# include
+  # - echo "You can add other projects here"
+  # - project: "some/other/important/project"
+  # ref: main
+  # file: "src/project.yml"
+defaults:
+tags:
+  - your-common-instance-tag
+stages:
+- build
+- test
+- deploy_dev
+- deploy_tests
+- qa_tests
+- rollback_qa
+- prod_gate
+- deploy_prod
+- rollback_prod
+- cleanup
+build:
+stage: build
+services:
+  - docker: 19.03.0-dind 
+before_script:
+  - echo "Run your pre-build command here"
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+script:
+  - docker build -t $CI_REGISTRY/repo:$DOCKER_IMAGE_TAG --build-agrs GITLAB_USER=$GITLAB_USER  --build-agrs GITLAB_PASSWORD=$GITLAB_PASSWORD -f ./Dockerfile .
+  - docker push $CI_REGISTRY/repo:$DOCKER_IMAGE_TAG
+  - echo "Run your builds here"
